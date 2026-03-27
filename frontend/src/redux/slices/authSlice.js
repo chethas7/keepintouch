@@ -8,12 +8,16 @@ import {
   resetPasswordAPI,
 } from "../../api/authApi";
 
-// Load token from localStorage
+// ✅ LOAD FROM LOCAL STORAGE
+const userFromStorage = localStorage.getItem("user")
+  ? JSON.parse(localStorage.getItem("user"))
+  : null;
+
 const tokenFromStorage = localStorage.getItem("token");
 
-// Initial State
+// ✅ INITIAL STATE
 const initialState = {
-  user: null,
+  user: userFromStorage,
   token: tokenFromStorage || null,
   isLoading: false,
   isError: false,
@@ -34,7 +38,7 @@ export const login = createAsyncThunk("auth/login", async (data, thunkAPI) => {
   }
 });
 
-// REGISTER (Send OTP)
+// REGISTER
 export const register = createAsyncThunk(
   "auth/register",
   async (data, thunkAPI) => {
@@ -78,6 +82,7 @@ export const googleLogin = createAsyncThunk(
     }
   },
 );
+
 // FORGOT PASSWORD
 export const forgotPassword = createAsyncThunk(
   "auth/forgotPassword",
@@ -107,6 +112,7 @@ export const resetPassword = createAsyncThunk(
     }
   },
 );
+
 const authSlice = createSlice({
   name: "auth",
   initialState,
@@ -122,7 +128,14 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       state.needsProfileCompletion = false;
+
       localStorage.removeItem("token");
+      localStorage.removeItem("user");
+    },
+
+    // ✅ NEW FIX (IMPORTANT)
+    updateUser: (state, action) => {
+      state.user = action.payload;
     },
   },
 
@@ -136,11 +149,12 @@ const authSlice = createSlice({
       .addCase(login.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
+
         state.user = action.payload.user;
         state.token = action.payload.token;
 
-        // Save token to localStorage
         localStorage.setItem("token", action.payload.token);
+        localStorage.setItem("user", JSON.stringify(action.payload.user));
       })
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
@@ -159,6 +173,7 @@ const authSlice = createSlice({
         state.isSuccess = true;
         state.message = action.payload.message;
       })
+
       // FORGOT PASSWORD
       .addCase(forgotPassword.pending, (state) => {
         state.isLoading = true;
@@ -188,19 +203,23 @@ const authSlice = createSlice({
         state.isError = true;
         state.message = action.payload;
       })
+
       // GOOGLE LOGIN
       .addCase(googleLogin.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
+
         state.user = action.payload.user;
         state.token = action.payload.token;
         state.needsProfileCompletion = action.payload.needsProfileCompletion;
 
-        // Save token
         localStorage.setItem("token", action.payload.token);
+        localStorage.setItem("user", JSON.stringify(action.payload.user));
       });
   },
 });
 
-export const { reset, logout } = authSlice.actions;
+// ✅ EXPORT UPDATED
+export const { reset, logout, updateUser } = authSlice.actions;
+
 export default authSlice.reducer;

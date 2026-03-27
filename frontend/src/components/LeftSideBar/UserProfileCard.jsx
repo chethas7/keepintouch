@@ -1,37 +1,53 @@
-import { users } from "../../assets/dummyData";
+import { useSelector } from "react-redux";
+import { useState } from "react";
+import ProfileModal from "./ProfileModal";
 
-const user = users[0];
+const DEFAULT_AVATAR = "https://i.pravatar.cc/150?img=12";
 
 const UserProfileCard = () => {
+  const user = useSelector((state) => state.auth.user);
+  const [openModal, setOpenModal] = useState(false);
+
+  if (!user) return null;
+
+  const isProfileIncomplete = !user.location || !user.workplace || !user.dob;
+
   return (
-    <div
-      className="bg-gray-100 dark:bg-[#1f1f1f] 
-                    rounded-xl p-4 shadow-sm
-                    text-center transition-colors"
-    >
-      {/* AVATAR */}
-      <img
-        src={user.avatar}
-        className="w-28 h-28 mx-auto rounded-lg object-cover"
-      />
+    <>
+      <div className="bg-gray-100 dark:bg-[#1f1f1f] rounded-xl p-4 shadow-sm">
+        {/* AVATAR */}
+        <img
+          src={user.avatar || DEFAULT_AVATAR}
+          className="w-24 h-24 mx-auto rounded-lg object-cover"
+        />
 
-      {/* NAME */}
-      <h2 className="mt-3 font-semibold text-lg text-gray-800 dark:text-gray-200">
-        {user.name}
-      </h2>
+        {/* NAME */}
+        <h2 className="mt-3 text-center font-semibold text-lg">{user.name}</h2>
 
-      {/* AGE */}
-      <p className="text-sm text-gray-600 dark:text-gray-400">Age {user.age}</p>
+        {/* INFO PREVIEW */}
+        <div className="mt-3 text-sm text-gray-600 dark:text-gray-400 space-y-1 text-center">
+          {user.location && <p>📍 {user.location}</p>}
+          {user.workplace && <p>💼 {user.workplace}</p>}
+        </div>
 
-      {/* INFO */}
-      <div className="mt-3 text-sm text-gray-600 dark:text-gray-400 space-y-1">
-        <p>📍 Lives in {user.location}</p>
+        {/* WARNING */}
+        {isProfileIncomplete && (
+          <p className="mt-3 text-xs text-yellow-500 text-center">
+            ⚠ Complete your profile
+          </p>
+        )}
 
-        <p>🎂 {user.dob}</p>
-
-        <p>💼 Works at {user.workplace}</p>
+        {/* SEE MORE / EDIT */}
+        <button
+          onClick={() => setOpenModal(true)}
+          className="mt-3 text-sm text-blue-500 hover:underline block mx-auto"
+        >
+          {isProfileIncomplete ? "Complete Profile" : "Edit Profile"}
+        </button>
       </div>
-    </div>
+
+      {openModal && <ProfileModal onClose={() => setOpenModal(false)} />}
+    </>
   );
 };
 

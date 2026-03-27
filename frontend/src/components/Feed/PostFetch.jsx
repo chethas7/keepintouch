@@ -1,10 +1,75 @@
 import { useState } from "react";
-import { posts, users, comments } from "../../assets/dummyData";
-import { FaRegHeart, FaRegComment, FaPaperPlane } from "react-icons/fa";
+import { useSelector } from "react-redux";
 import { FiSend } from "react-icons/fi";
 
-const PostFetch = () => {
+import { toggleLikeAPI, addCommentAPI } from "../../api/postAPI";
+
+const DEFAULT_AVATAR = "https://i.pravatar.cc/150?img=12";
+
+const PostFetch = ({ posts }) => {
   const [expandedPosts, setExpandedPosts] = useState({});
+  const [localPosts, setLocalPosts] = useState(posts);
+  const [commentInputs, setCommentInputs] = useState({});
+
+  const currentUser = useSelector((state) => state.auth.user);
+
+  // 👍 FORMAT COUNTS
+  const formatCount = (num) => {
+    if (!num) return 0;
+    if (num >= 1000) return (num / 1000).toFixed(1) + "K";
+    return num;
+  };
+
+  // ❤️ LIKE TOGGLE
+  const handleLike = async (postId) => {
+    const userId = currentUser?.id;
+
+    if (!userId) return; // ✅ silent guard
+
+    const userIdStr = userId.toString();
+
+    setLocalPosts((prev) =>
+      prev.map((p) => {
+        if (p._id !== postId) return p;
+
+        const likesArray = (p.likes || []).map((id) => id?.toString());
+
+        const isLiked = likesArray.includes(userIdStr);
+
+        return {
+          ...p,
+          likes: isLiked
+            ? likesArray.filter((id) => id !== userIdStr)
+            : [...likesArray, userIdStr],
+        };
+      }),
+    );
+
+    toggleLikeAPI(postId).catch(console.log);
+  };
+
+  // 💬 COMMENT
+  const handleComment = async (postId) => {
+    const text = commentInputs[postId];
+    if (!text) return;
+
+    try {
+      const res = await addCommentAPI(postId, { text });
+
+      setLocalPosts((prev) =>
+        prev.map((p) =>
+          p._id === postId ? { ...p, comments: res.data.comments } : p,
+        ),
+      );
+
+      setCommentInputs((prev) => ({
+        ...prev,
+        [postId]: "",
+      }));
+    } catch (err) {
+      console.log(err);
+    }
+  };
 
   const toggleComments = (postId) => {
     setExpandedPosts((prev) => ({
@@ -15,104 +80,146 @@ const PostFetch = () => {
 
   return (
     <div className="space-y-6">
-      {posts.map((post) => {
-        const user = users.find((u) => u.id === post.userId);
-        if (!user) return null;
+      {localPosts.map((post) => {
+        const postUser = post.user;
+        if (!postUser) return null;
 
-        const postComments = comments.filter((c) => c.postId === post.id);
+        const userId = currentUser?.id?.toString();
 
-        const visibleComments = expandedPosts[post.id]
-          ? postComments
-          : postComments.slice(0, 3);
+        const isLiked =
+          userId &&
+          (post.likes || []).map((id) => id?.toString()).includes(userId);
+
+        const visibleComments = expandedPosts[post._id]
+          ? post.comments
+          : post.comments?.slice(0, 3);
 
         return (
           <div
-            key={post.id}
-            className="bg-gray-300 dark:bg-[#1f1f1f]
-                       text-gray-800 dark:text-gray-200
-                       rounded-2xl p-5 shadow-sm
-                       transition-colors"
+            key={post._id}
+            className="bg-gray-100 dark:bg-[#1f1f1f] p-5 rounded-2xl"
           >
             {/* USER */}
-            <p className="font-semibold mb-1">{user.name}</p>
+            <div className="flex items-center gap-3 mb-3">
+              <img
+                src={postUser.avatar || DEFAULT_AVATAR}
+                className="w-10 h-10 rounded-full object-cover"
+              />
+              <p className="font-semibold">{postUser.name}</p>
+            </div>
 
-            {/* TEXT */}
-            <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">
+            {/* CONTENT */}
+            <p className="mb-3 text-gray-700 dark:text-gray-300">
               {post.content}
             </p>
 
             {/* IMAGE */}
-            {post.media && post.media.length > 0 && (
-              <img src={post.media[0].url} className="rounded-xl mb-4 w-full" />
+            {post.image && (
+              <img
+                src={post.image}
+                className="rounded-xl mb-3 w-full max-h-[500px] object-cover"
+              />
             )}
 
-            {/* ACTION BAR */}
-            <div className="flex gap-6 text-xl text-gray-600 dark:text-gray-300 mb-4">
-              <FaRegHeart className="cursor-pointer hover:text-red-500 transition" />
-              <FaRegComment className="cursor-pointer hover:text-blue-500 transition" />
-              <FaPaperPlane className="cursor-pointer hover:text-green-500 transition" />
+            {/* 👍 STATS */}
+            <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400 mb-2">
+              <span>👍 {formatCount(post.likes?.length)}</span>
+              <span>{post.comments?.length || 0} comments • 0 shares</span>
             </div>
 
-            <hr className="border-gray-300 dark:border-gray-700 mb-4" />
+            <hr className="border-gray-300 dark:border-gray-700 mb-2" />
+
+            {/* ACTION BUTTONS */}
+            <div className="flex justify-around text-sm font-medium text-gray-600 dark:text-gray-300">
+              {/* LIKE */}
+              <button
+                disabled={!currentUser?.id}
+                onClick={() => handleLike(post._id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition 
+                  ${
+                    !currentUser?.id
+                      ? "opacity-50 cursor-not-allowed"
+                      : isLiked
+                        ? "text-blue-500"
+                        : "hover:bg-gray-200 dark:hover:bg-[#2a2a2a]"
+                  }`}
+              >
+                👍 <span>Like</span>
+              </button>
+
+              {/* COMMENT */}
+              <button
+                onClick={() => toggleComments(post._id)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-[#2a2a2a]"
+              >
+                💬 <span>Comment</span>
+              </button>
+
+              {/* SHARE */}
+              <button className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-[#2a2a2a]">
+                🔁 <span>Share</span>
+              </button>
+            </div>
+
+            <hr className="border-gray-300 dark:border-gray-700 mt-2 mb-3" />
 
             {/* COMMENTS */}
-            <div className="space-y-4">
-              {visibleComments.map((comment) => {
-                const commentUser = users.find((u) => u.id === comment.userId);
+            <div
+              className="space-y-2 overflow-hidden transition-all duration-700 ease-in-out"
+              style={{
+                maxHeight: expandedPosts[post._id]
+                  ? `${Math.min((post.comments?.length || 0) * 70, 400)}px`
+                  : `${Math.min((visibleComments?.length || 0) * 70, 210)}px`,
+              }}
+            >
+              {visibleComments?.map((c, i) => (
+                <div key={i} className="flex gap-2">
+                  <img
+                    src={c.user?.avatar || DEFAULT_AVATAR}
+                    className="w-7 h-7 rounded-full"
+                  />
 
-                return (
-                  <div key={comment.id} className="flex gap-3">
-                    <img
-                      src={commentUser.avatar}
-                      className="w-8 h-8 rounded-full"
-                    />
+                  <div className="bg-gray-200 dark:bg-[#2a2a2a] px-3 py-2 rounded-xl">
+                    <p className="text-xs font-semibold text-gray-800 dark:text-white">
+                      {c.user?.name}
+                    </p>
 
-                    <div>
-                      <p className="text-sm font-semibold">
-                        {commentUser.name}
-                      </p>
-
-                      <p className="text-sm text-gray-600 dark:text-gray-300">
-                        {comment.text}
-                      </p>
-                    </div>
+                    <p className="text-xs text-gray-700 dark:text-gray-200">
+                      {c.text}
+                    </p>
                   </div>
-                );
-              })}
+                </div>
+              ))}
 
-              {/* SHOW MORE */}
-              {postComments.length > 3 && (
+              {post.comments?.length > 3 && (
                 <button
-                  onClick={() => toggleComments(post.id)}
+                  onClick={() => toggleComments(post._id)}
                   className="text-sm text-blue-500 hover:underline"
                 >
-                  {expandedPosts[post.id] ? "Show less" : "Show more comments"}
+                  {expandedPosts[post._id] ? "Show less" : "Show more comments"}
                 </button>
               )}
             </div>
 
             {/* ADD COMMENT */}
-            <div className="flex items-start gap-3 mt-4">
-              <img src={user.avatar} className="w-9 h-9 rounded-full" />
+            <div className="flex gap-2 mt-3">
+              <input
+                value={commentInputs[post._id] || ""}
+                onChange={(e) =>
+                  setCommentInputs({
+                    ...commentInputs,
+                    [post._id]: e.target.value,
+                  })
+                }
+                placeholder="Write a comment..."
+                className="flex-1 px-3 py-2 rounded-full bg-white dark:bg-[#2a2a2a]
+                           text-gray-800 dark:text-white outline-none"
+              />
 
-              <div className="flex flex-col flex-1">
-                <p className="text-sm font-semibold">{user.name}</p>
-
-                <div
-                  className="flex items-center
-                             bg-white dark:bg-[#2a2a2a]
-                             rounded-full px-4 py-2 mt-1"
-                >
-                  <input
-                    placeholder="Write your comment..."
-                    className="bg-transparent outline-none flex-1 text-sm
-                               text-gray-700 dark:text-gray-200
-                               placeholder-gray-500 dark:placeholder-gray-400"
-                  />
-
-                  <FiSend className="text-gray-500 dark:text-gray-300 cursor-pointer hover:text-blue-500" />
-                </div>
-              </div>
+              <FiSend
+                onClick={() => handleComment(post._id)}
+                className="cursor-pointer text-gray-500 hover:text-blue-500"
+              />
             </div>
           </div>
         );

@@ -2,52 +2,46 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
-    name: {
-      type: String,
-      required: true,
+    // 🔹 BASIC
+    name: { type: String, required: true },
+    username: { type: String, unique: true },
+    email: { type: String, required: true },
+
+    avatar: { type: String, default: "" },
+    coverPhoto: { type: String, default: "" },
+
+    bio: { type: String, maxLength: 150 },
+    pronouns: { type: String },
+
+    // 🔹 CONTACT
+    website: { type: String },
+    socialLinks: {
+      linkedin: String,
+      github: String,
+      twitter: String,
+      instagram: String,
+    },
+    phone: { type: String },
+    secondaryEmail: { type: String },
+
+    // 🔹 LOCATION & WORK
+    currentCity: String,
+    hometown: String,
+    workplace: String,
+    jobTitle: String,
+    education: {
+      college: String,
+      school: String,
     },
 
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-    },
+    // 🔹 DISCOVERY
+    interests: [String], // ["React", "Gaming"]
+    relationshipStatus: String,
+    hobbies: [String],
 
-    password: {
-      type: String,
-      default: null,
-    },
-
-    avatar: {
-      type: String,
-      default: "",
-    },
-
-    gender: {
-      type: String,
-      default: null,
-    },
-
-    dateOfBirth: {
-      type: Date,
-      default: null,
-    },
-
-    googleId: {
-      type: String,
-      default: null,
-    },
-
-    authProvider: {
-      type: String,
-      enum: ["local", "google"],
-      default: "local",
-    },
-
-    isVerified: {
-      type: Boolean,
-      default: false,
-    },
+    // 🔹 SYSTEM
+    authProvider: String,
+    isVerified: Boolean,
   },
   { timestamps: true },
 );

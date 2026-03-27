@@ -1,23 +1,21 @@
-import User from "../models/userModel.js";
-import asyncHandler from "../middleware/asyncHandler.js";
-import ApiError from "../utils/apiError.js";
+export const updateProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
 
-export const updateProfile = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-  if (!user) {
-    throw new ApiError("User not found", 404);
+    // 🔥 MERGE EVERYTHING DYNAMICALLY
+    Object.keys(req.body).forEach((key) => {
+      user[key] = req.body[key];
+    });
+
+    const updatedUser = await user.save();
+
+    res.json({
+      success: true,
+      user: updatedUser,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-
-  user.name = req.body.name || user.name;
-  user.gender = req.body.gender || user.gender;
-  user.dateOfBirth = req.body.dateOfBirth || user.dateOfBirth;
-
-  await user.save();
-
-  res.status(200).json({
-    success: true,
-    message: "Profile updated",
-    user,
-  });
-});
+};

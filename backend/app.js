@@ -6,7 +6,8 @@ import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import protect from "./middleware/authMiddleware.js";
 import postRoutes from "./routes/postRoutes.js";
-
+import dotenv from "dotenv";
+dotenv.config();
 const app = express();
 
 // Middlewares
